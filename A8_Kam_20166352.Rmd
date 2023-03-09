@@ -1,0 +1,117 @@
+---
+title: "A8_Kam_20166352"
+author: "Sam Kam"
+date: "2023-03-06"
+output: html_document
+---
+# Community Ecology
+
+[GitHub Repository](https://github.com/samkam48/BIOL432_Assignment8)
+
+## Setup
+```{r}
+#load required packages
+library(ggplot2)
+library(dplyr)
+library(ape)
+library(ggtree)
+library(vegan)
+```
+
+```{r}
+#load dataset
+FlowerData <- read.csv("FloristicSurvey.csv", header = T)
+str(FlowerData)
+dim(FlowerData)
+
+FlowerData$Population <- as.character(FlowerData$Population)
+```
+
+**1. What effect (if any) does garlic mustard have on the plant community?**
+
+Plot Garlic plant vs. location
+```{r}
+ggplot(FlowerData, aes(x=Location, y = Rosettes)) +
+  geom_boxplot() +
+  xlab("Number of Garlic Mustard Rosettes") +
+  ylab("Inside vs. Outside garlic mustard patches")
+```
+
+Figure 1: Boxplot of the number of rosettes vs. whether they were measured inside or outside the garlic mustard patches. We can see that all measurements of rosettes were found only in their designated patches. 
+
+I also looked other data points including: bolting, budding, different stages of flowering in the garlic plant, and all the results found that garlic was only ever measured inside its designated patch.
+
+Plot other species vs. location
+```{r}
+#Claytonia virginiana (figure 2)
+ggplot(FlowerData, aes(x=Location, y = Claytonia_virginiana)) +
+  geom_boxplot() +
+  xlab("Number of Claytonia virginiana species") +
+  ylab("Inside vs. Outside garlic mustard patches")
+```
+
+Figure 2: Boxplot of the number of Claytonia virginiana plants vs. whether they were measured inside or outside the garlic mustard patches. There were more Claytonia virginiana plants found growing inside the garlic mustard patch vs. outside of it. 
+
+```{r}
+#separate diff species from garlic
+OtherSpecies <- FlowerData %>% 
+  select(11:44)
+row.names(OtherSpecies) <- FlowerData$Quadrate
+head(OtherSpecies)
+```
+
+```{r}
+#binary distance matrix
+BinMat <- OtherSpecies
+for(row in 1:nrow(OtherSpecies)) {
+  for(col in 1:ncol(OtherSpecies)){
+    if(BinMat[row,col]>0){
+      BinMat[row,col]=1
+    }
+  }
+}
+head(BinMat)
+```
+
+```{r}
+#Bray-Curtis dissimilarity
+BrayDat <- vegdist(OtherSpecies, method = "bray", binary = F)
+njTree <- nj(BrayDat)
+
+ggtree(njTree, layout = "rectangular") %<+% FlowerData +
+  geom_tiplab(aes(colour = Location)) + theme(legend.position = "right")
+```
+
+Figure 3: This neigbour-joining tree shows how different the groups are from each other. i (red) represents the quadrate measurements taken inside the garlic mustard patches, and o (blue) represents the quadrate measurements taken outside of the garlic mustard patches. The garlic mustard plant has a large effect on the plant community because there are no distinct tips that are clearly separated from inside vs. outside. 
+
+The garlic mustard plant has a large effect on the plant community. They are an invasive species that displace native wildflowers and hinder other plants growth by interfering with their nutrient source. We can see this as the tips are mixed with no specific clades separated inside vs. outside location (Figure 3).
+
+**2. What has a stronger effect on plant communities: the presence/absence of garlic mustard (in/out) or sampling population?**
+
+```{r}
+#NMDS to visualize how garlic plants affect other species...?
+set.seed(48)
+NMDSdat <- metaMDS(BrayDat, k = 2, trymax = 100)
+
+#create data for plotting:
+PDat <- data.frame(NMDS1 = NMDSdat$points[,1],
+                   NMDS2 = NMDSdat$points[,2],
+                   Quadrate = row.names(OtherSpecies))
+
+#add species labels using merge function:
+PDat <- merge(PDat, FlowerData, by ="Quadrate", 
+              all.x = T, all.y = F)
+
+str(PDat)
+
+#plot
+qplot(x = NMDS1, y = NMDS2,
+      colour = Population, shape = Location,
+      alpha = I(0.6), data = PDat) +
+  theme_bw()
+```
+
+Figure 4: Non-Metric Multidimensional scaling to visualize the similarities/differences among our samples. The populations appear to be clustered near each other, however, there are a variety of inside vs. outside measurements. 
+
+The presence/absence of garlic mustard (in/out) has a stronger effect than the sampling population. This is because each population (Figure 4) had instances of garlic mustard plants inside and outside the designated patches. 
+
